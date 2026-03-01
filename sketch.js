@@ -223,8 +223,8 @@ function drawFace(b) {
 
 // --- TILT ---
 function deviceTilted(event) {
-  gx = constrain(event.gamma / 45, -1, 1);
-gy = constrain(event.beta / 45, -1, 1);
+  gx = constrain(event.gamma / 90, -1, 1);
+  gy = constrain(event.beta / 90, -1, 1);
 }
 
 // --- PERMISSION BUTTON ---
