@@ -41,7 +41,7 @@ function makeGuy(x, y, r) {
     browWidth:  random(1.8, 2),
     browThick:  random(0.1, 0.3),
     browHeight: random(0.15, 0.5),
-    browAngle:  random(-0.2, 0.2),
+    browAngle:  random(-0.05, 0.05),
   };
 }
 
