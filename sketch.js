@@ -1,5 +1,5 @@
 // --- WOBBLE FRIENDS ---
-// Step 9: Greige/grey colours added to palette
+// Step 10: Noisy wobbly mouth
 
 let guys = [];
 let NUM_GUYS = 3;
@@ -10,13 +10,11 @@ let isMobile = false;
 
 let PALETTE = [15, 35, 55, 90, 160, 195, 225, 270, 310, 345];
 
-// neutral colours defined separately as full HSB objects
-// greige = warm, low saturation. grey = cool, almost no saturation.
 let NEUTRALS = [
-  [30, 18, 82],  // warm greige
-  [35, 12, 75],  // darker greige / taupe
-  [200, 8, 78],  // cool grey
-  [220, 5, 88],  // light silver grey
+  [30, 18, 82],
+  [35, 12, 75],
+  [200, 8, 78],
+  [220, 5, 88],
 ];
 
 function makeGuy(x, y, r) {
@@ -37,16 +35,18 @@ function makeGuy(x, y, r) {
     eyeSpread: random(0.2, 0.4),
     eyeHeight: random(-0.1, 0.1),
 
-    // monobrow personality
-    browWidth:  random(1.8, 2),
+    // monobrow
+    browWidth:  random(1.9, 2),
     browThick:  random(0.1, 0.3),
-    browHeight: random(0.15, 0.5),
-    browAngle:  random(-0.05, 0.05),
+    browHeight: random(0.15, 0.4),
+    browAngle:  random(-0.1, 0.1),
+
+    // mouth gets its own noise offset so it wriggles independently
+    mouthNoiseOffset: random(1000),
   };
 }
 
 function randomColour() {
-  // 25% chance of a neutral, 75% chance of a vibrant palette colour
   if (random() < 0.25) {
     let n = NEUTRALS[floor(random(NEUTRALS.length))];
     return color(n[0], n[1], n[2]);
@@ -150,6 +150,7 @@ function updateGuy(b) {
 
   b.col = lerpColor(b.col, b.targetCol, 0.1);
   b.noiseOffset += b.noiseSpeed;
+  b.mouthNoiseOffset += b.noiseSpeed * 1.4; // mouth wriggles a bit faster
 
   let springK    = 0.4;
   let springDamp = 0.7;
@@ -232,12 +233,42 @@ function drawFace(b) {
   circle(x - eyeOffset + ex * 1.5, eyeY + ey * 1.5, eyeR);
   circle(x + eyeOffset + ex * 1.5, eyeY + ey * 1.5, eyeR);
 
-  // mouth
-  let mouthW = r * 0.32;
-  let mouthH = map(speed, 0, 10, r * 0.06, r * 0.35);
-  mouthH = constrain(mouthH, r * 0.02, r * 0.35);
+  // --- noisy mouth ---
+  // base size grows with speed — small blob when still, wider when flying
+  let mouthW = map(speed, 0, 10, r * 0.05, r * 0.15);
+  mouthW = constrain(mouthW, r * 0.12, r * 0.38);
+  let mouthH = map(speed, 0, 10, r * 0.01, r * 0.15);
+  mouthH = constrain(mouthH, r * 0.08, r * 0.28);
+
+  let mouthX = x + ex * 0.4;
+  let mouthY = eyeY + eyeR * 2.2 + ey * 0.4;
+
+  let numMouthPts = 6; // fewer points = chunkier, more hand-drawn feel
+  let mNoise      = 0.18; // noise scale for mouth sampling
+  let mMag        = min(mouthW, mouthH) * 0.45; // how bumpy
+
   fill(0, 0, 10);
-  ellipse(x + ex * 0.4, eyeY + eyeR * 2.2 + ey * 0.4, mouthW, mouthH);
+  beginShape();
+  for (let i = 0; i < numMouthPts; i++) {
+    let angle = (TWO_PI / numMouthPts) * i;
+    let nx    = cos(angle) * mNoise + b.mouthNoiseOffset;
+    let ny    = sin(angle) * mNoise + b.mouthNoiseOffset + 50;
+    let bump  = map(noise(nx, ny), 0, 1, -mMag, mMag);
+    // ellipse base so it's wider than tall even before noise
+    let rx = mouthW + bump;
+    let ry = mouthH + bump;
+    curveVertex(mouthX + cos(angle) * rx, mouthY + sin(angle) * ry);
+  }
+  for (let i = 0; i < 3; i++) {
+    let angle = (TWO_PI / numMouthPts) * i;
+    let nx    = cos(angle) * mNoise + b.mouthNoiseOffset;
+    let ny    = sin(angle) * mNoise + b.mouthNoiseOffset + 50;
+    let bump  = map(noise(nx, ny), 0, 1, -mMag, mMag);
+    let rx = mouthW + bump;
+    let ry = mouthH + bump;
+    curveVertex(mouthX + cos(angle) * rx, mouthY + sin(angle) * ry);
+  }
+  endShape(CLOSE);
 
   // monobrow
   let browW = eyeOffset * 2 * b.browWidth;
