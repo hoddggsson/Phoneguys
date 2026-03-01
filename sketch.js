@@ -1,5 +1,5 @@
 // --- WOBBLE FRIENDS ---
-// Step 6: Animated noise + lerped colour transitions + better palette
+// Step 7: Individual face personalities
 
 let guys = [];
 let NUM_GUYS = 3;
@@ -8,8 +8,6 @@ let gy = 0;
 let tiltPermissionGranted = false;
 let isMobile = false;
 
-// hand-picked hues that are visually distinct and vibrant
-// spread across the wheel but skipping muddy zones
 let PALETTE = [15, 35, 55, 90, 160, 195, 225, 270, 310, 345];
 
 function makeGuy(x, y, r) {
@@ -20,16 +18,20 @@ function makeGuy(x, y, r) {
     r: r,
     fx: x, fy: y,
     fvx: 0, fvy: 0,
-    col: c,         // current displayed colour (lerps toward target)
-    targetCol: c,   // colour we're lerping toward
+    col: c,
+    targetCol: c,
     noiseOffset: random(1000),
-    noiseSpeed: random(0.004, 0.009), // each guy breathes at its own rate
+    noiseSpeed: random(0.004, 0.009),
+
+    // face personality — unique per guy
+    eyeSize:   random(0.8, 1.4),   // scale factor on eye radius
+    eyeSpread: random(0.22, 0.36), // horizontal distance from centre
+    eyeHeight: random(-0.1, 0.1),  // vertical offset (negative = higher up)
   };
 }
 
 function randomColour() {
   let h = PALETTE[floor(random(PALETTE.length))];
-  // small random nudge so same hue doesn't repeat identically
   h += random(-8, 8);
   return color(h, 85, 95);
 }
@@ -97,7 +99,7 @@ function collidePair(a, b) {
     let dot = dvx * nx + dvy * ny;
 
     if (dot > 0) {
-      let restitution = 2.0;
+      let restitution = 1.8;
       a.vx -= dot * nx * restitution;
       a.vy -= dot * ny * restitution;
       b.vx += dot * nx * restitution;
@@ -121,19 +123,14 @@ function updateGuy(b) {
   b.x += b.vx;
   b.y += b.vy;
 
-  // wall bounce
   if (b.x - b.r < 0)      { b.x = b.r;         b.vx *= -damping; b.targetCol = randomColour(); }
   if (b.x + b.r > width)  { b.x = width - b.r; b.vx *= -damping; b.targetCol = randomColour(); }
   if (b.y - b.r < 0)      { b.y = b.r;          b.vy *= -damping; b.targetCol = randomColour(); }
   if (b.y + b.r > height) { b.y = height - b.r; b.vy *= -damping; b.targetCol = randomColour(); }
 
-  // lerp current colour toward target — smooth fade over ~20 frames
   b.col = lerpColor(b.col, b.targetCol, 0.1);
-
-  // animate noise offset — tiny increment = smooth organic breathing
   b.noiseOffset += b.noiseSpeed;
 
-  // face spring
   let springK    = 0.4;
   let springDamp = 0.7;
   let faceBounce = 0.4;
@@ -171,7 +168,6 @@ function drawGuy(b) {
   beginShape();
   for (let i = 0; i < numPoints; i++) {
     let angle = (TWO_PI / numPoints) * i;
-    // noiseOffset increments each frame so the shape slowly morphs
     let nx   = cos(angle) * noiseScale + b.noiseOffset;
     let ny   = sin(angle) * noiseScale + b.noiseOffset + 100;
     let bump = map(noise(nx, ny), 0, 1, -noiseMag, noiseMag);
@@ -188,36 +184,47 @@ function drawGuy(b) {
   }
   endShape(CLOSE);
 
-  drawFace(b.fx, b.fy, b.r, b.fvx, b.fvy);
+  drawFace(b);
 }
 
-function drawFace(x, y, r, vx, vy) {
-  let eyeOffset = r * 0.28;
-  let eyeR      = r * 0.13;
+function drawFace(b) {
+  let x  = b.fx;
+  let y  = b.fy;
+  let r  = b.r;
+  let vx = b.fvx;
+  let vy = b.fvy;
+
+  let eyeOffset = r * b.eyeSpread;
+  let eyeR      = r * 0.13 * b.eyeSize;
+  let eyeY      = y + r * b.eyeHeight; // vertical position tweak per guy
   let speed     = sqrt(vx * vx + vy * vy);
 
+  // eyes drift in direction of travel, clamped to eye radius
   let ex = constrain(vx * 0.5, -eyeR, eyeR);
   let ey = constrain(vy * 0.5, -eyeR, eyeR);
 
+  // whites
   fill(255, 0, 100);
-  circle(x - eyeOffset + ex, y - eyeOffset * 0.3 + ey, eyeR * 2);
-  circle(x + eyeOffset + ex, y - eyeOffset * 0.3 + ey, eyeR * 2);
+  circle(x - eyeOffset + ex, eyeY + ey, eyeR * 2);
+  circle(x + eyeOffset + ex, eyeY + ey, eyeR * 2);
 
+  // pupils
   fill(0, 0, 10);
-  circle(x - eyeOffset + ex * 1.5, y - eyeOffset * 0.3 + ey * 1.5, eyeR);
-  circle(x + eyeOffset + ex * 1.5, y - eyeOffset * 0.3 + ey * 1.5, eyeR);
+  circle(x - eyeOffset + ex * 1.5, eyeY + ey * 1.5, eyeR);
+  circle(x + eyeOffset + ex * 1.5, eyeY + ey * 1.5, eyeR);
 
+  // mouth sits below eyes, also shifts slightly with movement
   let mouthW = r * 0.32;
   let mouthH = map(speed, 0, 10, r * 0.06, r * 0.35);
   mouthH = constrain(mouthH, r * 0.06, r * 0.35);
   fill(0, 0, 10);
-  ellipse(x + ex * 0.4, y + eyeOffset * 0.7 + ey * 0.4, mouthW, mouthH);
+  ellipse(x + ex * 0.4, eyeY + eyeR * 2.2 + ey * 0.4, mouthW, mouthH);
 }
 
 // --- TILT ---
 function deviceTilted(event) {
   gx = constrain(event.gamma / 45, -1, 1);
-  gy = constrain((event.beta - 45) / 45, -1, 1);
+  gy = constrain((event.beta - 90) / 45, -1, 1);
 }
 
 // --- PERMISSION BUTTON ---
