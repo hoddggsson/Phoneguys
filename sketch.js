@@ -1,5 +1,5 @@
 // --- WOBBLE FRIENDS ---
-// Step 7: Individual face personalities
+// Step 9: Greige/grey colours added to palette
 
 let guys = [];
 let NUM_GUYS = 3;
@@ -9,6 +9,15 @@ let tiltPermissionGranted = false;
 let isMobile = false;
 
 let PALETTE = [15, 35, 55, 90, 160, 195, 225, 270, 310, 345];
+
+// neutral colours defined separately as full HSB objects
+// greige = warm, low saturation. grey = cool, almost no saturation.
+let NEUTRALS = [
+  [30, 18, 82],  // warm greige
+  [35, 12, 75],  // darker greige / taupe
+  [200, 8, 78],  // cool grey
+  [220, 5, 88],  // light silver grey
+];
 
 function makeGuy(x, y, r) {
   let c = randomColour();
@@ -23,14 +32,25 @@ function makeGuy(x, y, r) {
     noiseOffset: random(1000),
     noiseSpeed: random(0.004, 0.009),
 
-    // face personality — unique per guy
-    eyeSize:   random(0.8, 1.4),   // scale factor on eye radius
-    eyeSpread: random(0.22, 0.36), // horizontal distance from centre
-    eyeHeight: random(-0.1, 0.1),  // vertical offset (negative = higher up)
+    // face personality
+    eyeSize:   random(1, 2),
+    eyeSpread: random(0.2, 0.4),
+    eyeHeight: random(-0.1, 0.1),
+
+    // monobrow personality
+    browWidth:  random(1.8, 2),
+    browThick:  random(0.1, 0.3),
+    browHeight: random(0.15, 0.5),
+    browAngle:  random(-0.2, 0.2),
   };
 }
 
 function randomColour() {
+  // 25% chance of a neutral, 75% chance of a vibrant palette colour
+  if (random() < 0.25) {
+    let n = NEUTRALS[floor(random(NEUTRALS.length))];
+    return color(n[0], n[1], n[2]);
+  }
   let h = PALETTE[floor(random(PALETTE.length))];
   h += random(-8, 8);
   return color(h, 85, 95);
@@ -196,10 +216,9 @@ function drawFace(b) {
 
   let eyeOffset = r * b.eyeSpread;
   let eyeR      = r * 0.13 * b.eyeSize;
-  let eyeY      = y + r * b.eyeHeight; // vertical position tweak per guy
+  let eyeY      = y + r * b.eyeHeight;
   let speed     = sqrt(vx * vx + vy * vy);
 
-  // eyes drift in direction of travel, clamped to eye radius
   let ex = constrain(vx * 0.5, -eyeR, eyeR);
   let ey = constrain(vy * 0.5, -eyeR, eyeR);
 
@@ -213,12 +232,26 @@ function drawFace(b) {
   circle(x - eyeOffset + ex * 1.5, eyeY + ey * 1.5, eyeR);
   circle(x + eyeOffset + ex * 1.5, eyeY + ey * 1.5, eyeR);
 
-  // mouth sits below eyes, also shifts slightly with movement
+  // mouth
   let mouthW = r * 0.32;
   let mouthH = map(speed, 0, 10, r * 0.06, r * 0.35);
-  mouthH = constrain(mouthH, r * 0.06, r * 0.35);
+  mouthH = constrain(mouthH, r * 0.02, r * 0.35);
   fill(0, 0, 10);
   ellipse(x + ex * 0.4, eyeY + eyeR * 2.2 + ey * 0.4, mouthW, mouthH);
+
+  // monobrow
+  let browW = eyeOffset * 2 * b.browWidth;
+  let browH = r * b.browThick;
+  let browY = eyeY - eyeR - r * b.browHeight + ey * 0.6;
+  let browX = x + ex * 0.6;
+
+  fill(0, 0, 10);
+  push();
+    translate(browX, browY);
+    rotate(b.browAngle);
+    rectMode(CENTER);
+    rect(0, 0, browW, browH, browH / 2);
+  pop();
 }
 
 // --- TILT ---
